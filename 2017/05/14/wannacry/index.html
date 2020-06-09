@@ -1,0 +1,83 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta http-equiv="content-type" content="text/html; charset=utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport"><meta content="yes" name="apple-mobile-web-app-capable"><meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"><meta content="telephone=no" name="format-detection"><meta name="description" content=""><title>首发 | Wannacry勒索软件母体主程序逆向分析（含临时解决方案自动化工具 | MS509 Team</title><link rel="stylesheet" type="text/css" href="/css/style.css?v=0.0.0"><link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/npm/normalize.css/normalize.min.css"><link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/npm/purecss/build/pure-min.min.css"><link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/npm/purecss/build/grids-responsive-min.css"><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css"><script type="text/javascript" src="//cdn.jsdelivr.net/npm/jquery/dist/jquery.min.js"></script><link rel="icon" mask="" sizes="any" href="/favicon.ico"><link rel="Shortcut Icon" type="image/x-icon" href="/favicon.ico"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="apple-touch-icon-precomposed" href="/apple-touch-icon.png"><script type="text/javascript" src="//cdn.jsdelivr.net/npm/clipboard/dist/clipboard.min.js"></script><script type="text/javascript" src="//cdn.jsdelivr.net/gh/codeseven/toastr/build/toastr.min.js"></script><link rel="stylesheet" href="//cdn.jsdelivr.net/gh/codeseven/toastr/build/toastr.min.css"><meta name="generator" content="Hexo 4.2.1"></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">首发 | Wannacry勒索软件母体主程序逆向分析（含临时解决方案自动化工具</h1><a id="logo" href="/.">MS509 Team</a><p class="description">Mission Studio</p></div><div id="nav-menu"><a class="current" href="/."><i class="fa fa-home"> 首页</i></a><a href="/archives/"><i class="fa fa-archive"> 归档</i></a><a href="/contact/"><i class="fa fa-comments"> 联系</i></a><a href="/about/"><i class="fa fa-user"> 关于</i></a><a href="/atom.xml"><i class="fa fa-rss"> 订阅</i></a></div></div><div class="pure-g" id="layout"><div class="pure-u-1 pure-u-md-3-4"><div class="content_container"><div class="post"><h1 class="post-title">首发 | Wannacry勒索软件母体主程序逆向分析（含临时解决方案自动化工具</h1><div class="post-meta">2017-05-14<span> | </span><span class="category"><a href="/categories/%E9%80%86%E5%90%91%E5%88%86%E6%9E%90/">逆向分析</a></span><script src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" async></script><span id="busuanzi_container_page_pv"> | <span id="busuanzi_value_page_pv"></span><span> 阅读</span></span><span class="post-time"><span class="post-meta-item-text"> | </span><span class="post-meta-item-icon"><i class="fa fa-keyboard-o"></i><span class="post-count"> 1.4k</span><span class="post-meta-item-text"> 字</span></span></span><span class="post-time"> | <span class="post-meta-item-icon"><i class="fa fa-clock-o"></i><span class="post-count"> 4</span><span class="post-meta-item-text"> 分钟</span></span></span></div><div class="post-content"><section><section class><section class><section class><section class><section class><section class><span style="color: #ff0000;">_声明：本文由expsky@MS509Team原创，仅用于技术交流分享_</span></section><section class></section><section class><span style="color: #008000;">_挺长时间没做逆向分析了，以前做逆向伤到了脑，也就成了所谓的脑残。但今天我手机里的微信公众号被Wannacry强势刷屏，于是又忍不住分析了下。_</span></section><section class></section><section class>_Wannacry勒索软件的背景大家都知道了，就是老美的重武器泄漏出来，结果被其他人捡了便宜所利用。类似这样的事情几年前我在以前的公司也做过，从国外弄来的高级样本，然后逆向后改良成自己的产品。毕竟这些高级货能原创出来的人太少了，逆向分析下改造改造这个擅长^_^    _</section><section class></section></section></section></section></section></section></section><a id="more"></a>
+
+<section><section class><section class><section class><section class>
+
+<h1 id="0x00-逆向分析"><a href="#0x00-逆向分析" class="headerlink" title="0x00  逆向分析"></a><strong>0x00  逆向分析</strong></h1></section></section></section></section></section>好了，说正题，我从这里（http://bbs.pediy.com/thread-217586.htm）下载了Wannacry样本，一些枯燥的汇编分析细节就不多讲，我们尽量快速的了解到整体过程。
+
+<p><img src="/2017/05/14/wannacry/1.jpg" alt="1"></p>
+<p>首先会通过一个函数算出一个标识，我们将这个函数命名为getDisplayName，本质就是通过GetComputerNameW获取计算机名然后取随机数算出一个唯一对应的标识（我们命名为DisplayName），后面的执行过程会用到这个标识</p>
+<p>接下来会做几件事情，任意一项未执行成功都会退出</p>
+<p><img src="/2017/05/14/wannacry/3.jpg" alt="3"></p>
+<p>检查命令行参数是否为两个，并且是否有/i这个参数</p>
+<p><img src="/2017/05/14/wannacry/4.jpg" alt="4"> <img src="/2017/05/14/wannacry/5.jpg" alt="5"> <img src="/2017/05/14/wannacry/6.jpg" alt="6"></p>
+<p>检查并尝试在<span style="color: #3366ff;">ProgramData目录</span> 或 <span style="color: #3366ff;">Intel目录</span> 或    <span style="color: #3366ff;">Temp系统临时目录</span>下创建前面算出的DisplayName为标识的目录</p>
+<p><img src="/2017/05/14/wannacry/31.jpg" alt="31"></p>
+<p>将这个工作目录设置为6也就是0×2 和 0×4（FILE_ATTRIBUTE_HIDDEN 和 FILE_ATTRIBUTE_SYSTEM ）隐藏和系统</p>
+<p><img src="/2017/05/14/wannacry/7.jpg" alt="7"></p>
+<p>创建自身的副本并命名为tasksche.exe</p>
+<p><img src="/2017/05/14/wannacry/8.jpg" alt="8"> <img src="/2017/05/14/wannacry/9.jpg" alt="9"></p>
+<p>将tasksche.exe优先以服务方式启动，如果失败则以普通进程方式启动（副本启动的入口点和原始文件启动的入口点不同，从而实现不同的逻辑）</p>
+<p><img src="/2017/05/14/wannacry/10.jpg" alt="10">通过<span style="color: #3366ff;">互斥体Global\MsWinZonesCacheCounterMutexA</span>来判断是否启动成功</p>
+<p>以上几项都成功完成后流程才会继续，否则终止。</p>
+<p><img src="/2017/05/14/wannacry/11.jpg" alt="11">)<img src="/2017/05/14/wannacry/12.jpg" alt="12">创建注册表项<span style="color: #3366ff;">HKEY_LOCAL_MACHINE\Software\WanaCrypt0r\wd</span> ，写入当前路径值</p>
+<p><img src="/2017/05/14/wannacry/13.jpg" alt="13"></p>
+<p>从资源中释放PE文件taskdl.exe、taskse.exe，为了免杀，资源中的PE文件是加了密的，释放过程中会解密，比较繁琐</p>
+<p>会给释放的资源传一个类似key之类的参数过去，参数值为<span style="color: #008000;">WNcry@2ol7</span></p>
+<p><img src="/2017/05/14/wannacry/15.jpg" alt="15"></p>
+<p>然后在当前目录下读取c.wnry文件</p>
+<p><img src="/2017/05/14/wannacry/16.jpg" alt="16"></p>
+<p>如果读取到了c.wnry文件，就会将<span style="color: #3366ff;">13AM4VW2dhxYgXeQepoHkHSQuy6NgaEb94</span>通过一个随机数加密后写回到c.wnry，而这一串数字就是黑客的比特币地址，也就是说c.wnry文件里保存的是加密后的黑客的比特币地址</p>
+<p><img src="/2017/05/14/wannacry/17.jpg" alt="17"></p>
+<p><span style="color: #3366ff;">上图就是c.wnry文件的加密算法</span>，这个加密很简单，只用了两句来实现</p>
+<p>下面的临时解决方案的自动化工具里就用到了这三个黑客的比特币地址</p>
+<blockquote>
+<p>13AM4VW2dhxYgXeQepoHkHSQuy6NgaEb94</p>
+<p>12t9YDPgwueZ9NyMgw519p7AA8isjr6SMw</p>
+<p>115p7UMMngoj1pMvkpHijcRdfJNXj6LrLn<br><img src="/2017/05/14/wannacry/18.jpg" alt="18">执行这两句命令<br>attrib +h .</p>
+<p>icacls . /grant Everyone:F /T /C /Q<br>attrib命令将DisplayName工作目录设置为隐藏</p>
+</blockquote>
+<p>icacls命令开放目录的用户权限</p>
+<p>接下来是动态获取所需的API地址</p>
+<p><img src="/2017/05/14/wannacry/19.jpg" alt="19"></p>
+<p>首先是获取kernel32.dll中的文件相关的API</p>
+<p><img src="/2017/05/14/wannacry/20.jpg" alt="20"></p>
+<p>然后是获取advapi32.dll中的加解密相关的API</p>
+<p><img src="/2017/05/14/wannacry/21.jpg" alt="21"></p>
+<p>CSP用的是系统默认或者是RSA and AES</p>
+<p><img src="/2017/05/14/wannacry/22.jpg" alt="22"></p>
+<p>加密文件以<span style="color: #3366ff;">WANACRY!</span>为特征头</p>
+<p><img src="/2017/05/14/wannacry/28.jpg" alt="28"></p>
+<p>被加密的文件涉及到各种文档、文本、虚拟机、压缩包、镜像、图片、视频、音乐、源代码、脚本、数据库、邮件、证书等近200种文件类型，几乎涵盖了方方面面，但确没有BT种子文件，看来黑客还是有所为有所不为啊^_^</p>
+<section><section class><section class><section class><section class>
+
+<h1 id="0x01临时解决方案自动化工具"><a href="#0x01临时解决方案自动化工具" class="headerlink" title="0x01临时解决方案自动化工具"></a>0x01临时解决方案自动化工具</h1></section></section></section></section></section>网上流传了一个临时解决方案的思路是：
+> 获取黑客收款地址的交易记录
+> 
+> 
+> 将别人支付赎金的记录信息（交易hash值）冒充是自己付的发送给黑客来蒙混过关（挺贼的^_^）
+通过https://btc.com/可以查询到交易记录，但是我们需要有黑客的收款地址，上面我们已经分析出来了
+> 13AM4VW2dhxYgXeQepoHkHSQuy6NgaEb94
+> 
+> 
+> 12t9YDPgwueZ9NyMgw519p7AA8isjr6SMw
+> 
+> 
+> 115p7UMMngoj1pMvkpHijcRdfJNXj6LrLn
+网上有个python的自动化脚本，这里再优化一下，而且还有很多人不是搞IT的，不懂什么python，于是做了一个傻瓜式的exe程序来自动获取交易记录
+
+<p><img src="/2017/05/14/wannacry/29.jpg" alt="29"></p>
+<p>工具链接: <a href="http://pan.baidu.com/s/1hsbwQaC" target="_blank" rel="noopener">http://pan.baidu.com/s/1hsbwQaC</a> 密码: p263</p>
+<h2 id><a href="#" class="headerlink" title></a></h2><section><section class><section class><section class><section class>
+
+<h1 id="0x02结尾"><a href="#0x02结尾" class="headerlink" title="0x02结尾"></a>0x02结尾</h1></section></section></section></section></section>从下午开始一直坐在电脑前就没起过身，分析、码字、写工具，一晃现在都到半夜了，搞这行伤不起啊。写不动了，今天先休息了。不过也能猜到其他还要做什么，就是扫端口，找到开放了445端口SMBv1的就使用NSA老大的Eternalblue Doublepulsar实现蠕虫式传播
+
+<p>最后再分享下这次罪魁祸首的工具：</p>
+<p><a href="https://github.com/x0rz/EQGRP_Lost_in_Translation" target="_blank" rel="noopener">https://github.com/x0rz/EQGRP_Lost_in_Translation</a></p>
+<p><a href="https://github.com/misterch0c/shadowbroker" target="_blank" rel="noopener">https://github.com/misterch0c/shadowbroker</a></p>
+<p>是工具（没有源码），用了一个python攻击框架Fuzzbunch简称fb，这个框架怎么用，可以看这里<a href="http://www.freebuf.com/articles/system/133853.html" target="_blank" rel="noopener">http://www.freebuf.com/articles/system/133853.html</a></p>
+<p>微软的补丁信息：<a href="https://blogs.technet.microsoft.com/msrc/2017/04/14/protecting-customers-and-evaluating-risk/" target="_blank" rel="noopener">https://blogs.technet.microsoft.com/msrc/2017/04/14/protecting-customers-and-evaluating-risk/</a></p>
+<blockquote>
+<h2 id="版权声明："><a href="#版权声明：" class="headerlink" title="版权声明："></a><strong>版权声明：</strong></h2><p><strong>本文由MS509团队成员原创，转载请注明来源</strong></p>
+</blockquote>
+<p><strong>注：本文已由团队成员“expsky”2017-05-14 发布于“FreeBuf”</strong></p>
+</div><div class="tags"><a href="/tags/%E6%81%B6%E6%84%8F%E7%A8%8B%E5%BA%8F/"><i class="fa fa-tag"></i>恶意程序</a></div><div class="post-nav"><a class="pre" href="/2017/06/06/bypass360-analysis/">分享一种可关闭大多数杀软的技术（对360安全卫士已验证成功）</a><a class="next" href="/2017/05/04/Bluetoooth_Vul_1/">蓝牙App漏洞系列分析之一</a></div></div></div></div><div class="pure-u-1 pure-u-md-1-4"><div id="sidebar"><div class="widget"><form class="search-form" action="//www.google.com/search" method="get" accept-charset="utf-8" target="_blank"><input type="text" name="q" maxlength="20" placeholder="Search"/><input type="hidden" name="sitesearch" value="http://yoursite.com"/></form></div><div class="widget"><div class="widget-title"><i class="fa fa-folder-o"> 分类</i></div><ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/CTF/">CTF</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/WEB%E5%AE%89%E5%85%A8/">WEB安全</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E4%BA%8C%E8%BF%9B%E5%88%B6%E5%AE%89%E5%85%A8/">二进制安全</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E4%BB%A3%E7%A0%81%E5%AE%A1%E8%AE%A1/">代码审计</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E5%85%B6%E4%BB%96/">其他</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E5%AE%89%E5%85%A8%E5%B7%A5%E5%85%B7/">安全工具</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E7%A4%BE%E4%BC%9A%E5%B7%A5%E7%A8%8B%E5%AD%A6/">社会工程学</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E7%A7%BB%E5%8A%A8%E5%AE%89%E5%85%A8/">移动安全</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E9%80%86%E5%90%91%E5%88%86%E6%9E%90/">逆向分析</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-star-o"> 标签</i></div><div class="tagcloud"><a href="/tags/Android/" style="font-size: 15px;">Android</a> <a href="/tags/Linux/" style="font-size: 15px;">Linux</a> <a href="/tags/JAVA/" style="font-size: 15px;">JAVA</a> <a href="/tags/PWN/" style="font-size: 15px;">PWN</a> <a href="/tags/PHP/" style="font-size: 15px;">PHP</a> <a href="/tags/%E5%8E%9F%E5%88%9B%E6%BC%8F%E6%B4%9E/" style="font-size: 15px;">原创漏洞</a> <a href="/tags/CMS/" style="font-size: 15px;">CMS</a> <a href="/tags/Window/" style="font-size: 15px;">Window</a> <a href="/tags/%E6%9D%80%E6%AF%92%E8%BD%AF%E4%BB%B6/" style="font-size: 15px;">杀毒软件</a> <a href="/tags/Cknife/" style="font-size: 15px;">Cknife</a> <a href="/tags/%E5%AE%A1%E8%AE%A1%E5%B7%A5%E5%85%B7/" style="font-size: 15px;">审计工具</a> <a href="/tags/%E6%81%B6%E6%84%8F%E7%A8%8B%E5%BA%8F/" style="font-size: 15px;">恶意程序</a> <a href="/tags/Github/" style="font-size: 15px;">Github</a> <a href="/tags/IOS/" style="font-size: 15px;">IOS</a></div></div><div class="widget"><div class="widget-title"><i class="fa fa-file-o"> 最近文章</i></div><ul class="post-list"><li class="post-list-item"><a class="post-list-link" href="/2020/03/27/Subrion-Cms-Code-Audit/">Subrion CMS 代码审计</a></li><li class="post-list-item"><a class="post-list-link" href="/2020/03/19/Java-Debug/">Java无源码调试之英雄崛起</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/07/27/CVE-2017-8890-smep-bypass/">CVE-2017-8890实现linux内核提权- SMEP绕过</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/07/27/CVE-2017-8890-kernel-escalation1/">利用CVE-2017-8890实现linux内核提权- ret2usr</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/07/03/bundle-mismatch/">Bundle风水——Android序列化与反序列化不匹配漏洞详解</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/04/03/qwb2-silent-writeup/">强网杯silent分析</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/03/23/Rootme-uaf-writeup/">Rootme CTF UAF Writeup</a></li><li class="post-list-item"><a class="post-list-link" href="/2017/12/22/android-blueborne2/">Android蓝牙远程命令执行漏洞利用实践 exploit优化</a></li><li class="post-list-item"><a class="post-list-link" href="/2017/11/14/blueborne/">Android蓝牙远程命令执行漏洞利用实践:从PoC到exploit</a></li><li class="post-list-item"><a class="post-list-link" href="/2017/08/04/github-infoleak/">Github信息泄露升级版案例</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-external-link"> 友情链接</i></div><ul></ul><a href="http://www.zerokeeper.com/" title="小李飞刀" target="_blank">小李飞刀</a><ul></ul><a href="http://cybersec.blog.51cto.com" title="网络空间安全的道与术" target="_blank">网络空间安全的道与术</a></div></div></div><div class="pure-u-1 pure-u-md-3-4"><div id="footer">Copyright © 2020 <a href="/." rel="nofollow">MS509 Team.</a> Powered by<a rel="nofollow" target="_blank" href="https://hexo.io"> Hexo.</a><a rel="nofollow" target="_blank" href="https://github.com/tufu9441/maupassant-hexo"> Theme</a> by<a rel="nofollow" target="_blank" href="https://github.com/pagecho"> Cho.</a></div></div></div><a class="show" id="rocket" href="#top"></a><script type="text/javascript" src="/js/totop.js?v=0.0.0" async></script><script type="text/javascript" src="//cdn.jsdelivr.net/gh/fancyapps/fancybox/dist/jquery.fancybox.min.js" async></script><script type="text/javascript" src="/js/fancybox.js?v=0.0.0" async></script><link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox/dist/jquery.fancybox.min.css"><script type="text/javascript" src="/js/copycode.js" successtext="复制成功!"></script><link rel="stylesheet" type="text/css" href="/css/copycode.css"><script type="text/javascript" src="/js/codeblock-resizer.js?v=0.0.0"></script><script type="text/javascript" src="/js/smartresize.js?v=0.0.0"></script></div></body></html>
